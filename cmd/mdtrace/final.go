@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"mdtrace/internal/missions"
+	"mdtrace/internal/event"
 	"mdtrace/internal/store"
 	"mdtrace/internal/telegram"
 	"mdtrace/internal/weather"
@@ -53,6 +53,7 @@ type missionHour struct {
 
 // finalReport summarises the whole event for the messages sent when collection ends.
 type finalReport struct {
+	name      event.Text // the event's name, for the title
 	loc       *time.Location
 	start     time.Time // first run in which any mission gained a completion
 	end       time.Time // last run
@@ -260,7 +261,7 @@ func missionNames(ms []finalMission) string {
 }
 
 func (r finalReport) title(l lang) string {
-	title := l.pick("🏁 MD 2026 Zhuhai · final summary", "🏁 MD 2026 珠海 · 最终总结")
+	title := "🏁 " + l.pick(r.name.EN+" · final summary", r.name.ZH+" · 最终总结")
 	if r.preview {
 		title += l.pick(" (preview)", "（预览）")
 	}
@@ -425,31 +426,22 @@ func (r finalReport) richBlocks(l lang, charts []string) []telegram.RichBlock {
 // -preview sends it to the private chat only, marked as a preview.
 func runFinal(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("final", flag.ContinueOnError)
-	dir := fs.String("dir", defaultDir(), "data directory")
-	tz := fs.String("tz", "Local", "IANA time zone for message times")
+	flags := addEventFlags(fs)
 	chartsScript := fs.String("charts", "", "path to charts.R; when set, the summary includes the replay and charts")
 	rscript := fs.String("rscript", "Rscript", "Rscript executable used to render charts")
 	preview := fs.Bool("preview", false, "send to the private chat only, marked as a preview")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	loc, err := time.LoadLocation(*tz)
-	if err != nil {
-		return fmt.Errorf("invalid -tz: %w", err)
-	}
-	chat, channel, err := loadTelegram(*dir)
+	ev, list, err := loadEventMissions(flags)
 	if err != nil {
 		return err
 	}
-	list, err := missions.Load(filepath.Join(*dir, "missions.json"))
+	chat, channel, err := loadTelegram(*flags.dir)
 	if err != nil {
 		return err
 	}
-	names := make(map[string]string, len(list))
-	for _, m := range list {
-		names[m.GUID] = m.DisplayName
-	}
-	db, err := store.Open(filepath.Join(*dir, "mdtrace.db"))
+	db, err := store.Open(ev.Path("mdtrace.db"))
 	if err != nil {
 		return err
 	}
@@ -463,10 +455,11 @@ func runFinal(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	report, err := buildFinalReport(rows, hours, names, loc)
+	report, err := buildFinalReport(rows, hours, namesByGUID(list), ev.Location)
 	if err != nil {
 		return err
 	}
+	report.name = ev.Name
 	report.preview = *preview
 
 	// Each language gets its own chart set, with all chart text in that language. A failed set only
@@ -480,8 +473,8 @@ func runFinal(ctx context.Context, args []string) error {
 			return err
 		}
 		for _, l := range languages {
-			r := &rCharts{rscript: path, script: *chartsScript, geoDir: geoDir(*dir), rows: db, weather: db,
-				loc: loc, timeout: finalChartTimeout, final: true, lang: l}
+			r := &rCharts{rscript: path, script: *chartsScript, eventDir: ev.Dir, rows: db, weather: db,
+				loc: ev.Location, timeout: finalChartTimeout, final: true, lang: l}
 			paths, cleanup, err := r.Render(ctx)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("%s charts: %w", l.code(), err))
@@ -489,7 +482,7 @@ func runFinal(ctx context.Context, args []string) error {
 			}
 			defer cleanup()
 			charts[l] = paths
-			if err := copyFiles(paths, finalChartDir(*dir, l)); err != nil {
+			if err := copyFiles(paths, finalChartDir(ev.Dir, l)); err != nil {
 				errs = append(errs, fmt.Errorf("save %s final charts: %w", l.code(), err))
 			}
 		}
@@ -510,7 +503,8 @@ func runFinal(ctx context.Context, args []string) error {
 	return errors.Join(errs...)
 }
 
-// finalChartDir is where a language's final charts are kept: dir/final, and dir/final/zh for Chinese.
+// finalChartDir is where a language's final charts are kept: the event directory's final/, and
+// final/zh for Chinese.
 func finalChartDir(dir string, l lang) string {
 	if l == chinese {
 		return filepath.Join(dir, "final", "zh")

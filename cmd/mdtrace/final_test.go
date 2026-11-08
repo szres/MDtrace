@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"mdtrace/internal/event"
 	"mdtrace/internal/store"
 	"mdtrace/internal/weather"
 )
@@ -47,6 +48,7 @@ func TestBuildFinalReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	r.name = event.Text{EN: "MD 2026 Zhuhai", ZH: "MD 2026 珠海"}
 	if r.total != 20 || len(r.missions) != 3 {
 		t.Fatalf("total=%d missions=%d", r.total, len(r.missions))
 	}
@@ -152,7 +154,7 @@ func TestBuildFinalReportWithoutWeatherOrData(t *testing.T) {
 
 func TestRenderFinalChartSet(t *testing.T) {
 	script := fakeScript(t, `set -e
-test "$3" = --final
+test "$5" = --final
 mkdir -p "$2"
 for f in total.png map.png event_anim.mp4 map_anim.mp4; do echo x > "$2/$f"; done
 `)

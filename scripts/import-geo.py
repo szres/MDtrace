@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Build the geographic inputs for the map chart.
+"""Build an event's geographic inputs for the map charts.
 
-    python3 -I scripts/import-geo.py /path/to/zhuhai-md/public/missions.json
+    python3 -I scripts/import-geo.py events/md2026-zhuhai /path/to/site/public/missions.json
 
-Writes:
-  geo/routes.json     route polylines (WGS-84) keyed by mission GUID, joined on sourceRouteId
+The second file is the mission site's list with each route's portals; it is joined to the
+event's missions.json on sourceRouteId. Writes, inside the event directory:
+  geo/routes.json     route polylines (WGS-84) keyed by mission GUID
   geo/coastline.json  OpenStreetMap natural=coastline ways around the routes (via Overpass)
 
 Coastline data (c) OpenStreetMap contributors, ODbL 1.0.
@@ -17,16 +18,15 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 PAD_DEGREES = 0.04
 # Simplification tolerance (~25 m) keeps the coastline small while staying accurate at map scale.
 SIMPLIFY_DEGREES = 0.00025
 
 
-def load_routes(site_missions_path: Path) -> list[dict]:
+def load_routes(event_dir: Path, site_missions_path: Path) -> list[dict]:
     site = json.loads(site_missions_path.read_text(encoding="utf-8"))
-    tracked = json.loads((REPO / "missions.json").read_text(encoding="utf-8"))
+    tracked = json.loads((event_dir / "missions.json").read_text(encoding="utf-8"))
     guid_by_route = {m["sourceRouteId"]: m for m in tracked["missions"]}
 
     routes = []
@@ -103,10 +103,13 @@ def simplify(points: list[list[float]], tolerance: float) -> list[list[float]]:
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
+    if len(sys.argv) != 3:
         raise SystemExit(__doc__)
-    routes = load_routes(Path(sys.argv[1]))
-    out = REPO / "geo"
+    event_dir = Path(sys.argv[1])
+    if not (event_dir / "event.json").is_file():
+        raise SystemExit(f"{event_dir} is not an event directory (no event.json)")
+    routes = load_routes(event_dir, Path(sys.argv[2]))
+    out = event_dir / "geo"
     out.mkdir(exist_ok=True)
     (out / "routes.json").write_text(json.dumps({"routes": routes}, ensure_ascii=False, indent=1), encoding="utf-8")
 

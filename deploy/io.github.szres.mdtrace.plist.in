@@ -12,9 +12,9 @@
     <string>collect</string>
     <string>-dir</string>
     <string>@DIR@</string>
+    <string>-event</string>
+    <string>@EVENT@</string>
     <string>-notify</string>
-    <string>-tz</string>
-    <string>Asia/Shanghai</string>
     <string>-charts</string>
     <string>@DIR@/charts.R</string>
   </array>
@@ -86,9 +86,9 @@
   </array>
 
   <key>StandardOutPath</key>
-  <string>@DIR@/collect.log</string>
+  <string>@EVENT@/collect.log</string>
 
   <key>StandardErrorPath</key>
-  <string>@DIR@/collect.log</string>
+  <string>@EVENT@/collect.log</string>
 </dict>
 </plist>

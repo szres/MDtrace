@@ -1,9 +1,10 @@
 #!/usr/bin/env Rscript
-# Render MD mission tracking charts from `mdtrace export -tz Asia/Shanghai` CSV output.
+# Render MD mission tracking charts from `mdtrace export -event EVENT` CSV output.
 #
-#   Rscript analysis/charts.R <export.csv> <output-dir> [--geo DIR] [--weather weather.csv] [--final] [--lang en|zh]
+#   Rscript analysis/charts.R <export.csv> <output-dir> --event DIR [--weather weather.csv] [--final] [--lang en|zh]
 #
-# --geo     directory with routes.json and coastline.json from scripts/import-geo.py (enables map.png)
+# --event   the event directory: event.json gives the name, time zone, weather area and map focus;
+#           geo/routes.json and geo/coastline.json (scripts/import-geo.py), if present, enable the maps
 # --weather hourly weather from `mdtrace export -weather` (adds a temperature/rain panel to total.png)
 # --final   end-of-event set: map.png covers the whole event and event_anim.mp4 replays it,
 #           instead of the last-hour map and the last-2-hours animation
@@ -15,8 +16,8 @@
 #   completions.png  cumulative completions per mission (small multiples)
 #   pace.png         completions per hour, mission x time heatmap (shows the crowd moving)
 #   ratings.png      rating per mission over time (small multiples)
-#   map.png          heat map of the last hour's completions spread along the routes (only with --geo)
-#   map_anim.gif     the last 2 hours, one frame per read: new completions flash and fade over 30 min (only with --geo)
+#   map.png          heat map of the last hour's completions spread along the routes (only with geo/)
+#   map_anim.gif     the last 2 hours, one frame per read: new completions flash and fade over 30 min (only with geo/)
 #   map_anim.mp4     the same animation as H.264 video, sent to Telegram (plays as a looping GIF there)
 #   event_anim.mp4   with --final: the whole event replayed, one frame per 10 min: heat trail, completions
 #                    and rating per mission, hourly timeline
@@ -27,13 +28,13 @@ suppressPackageStartupMessages({
   library(scales)
 })
 
-usage <- "usage: Rscript charts.R <export.csv> <output-dir> [--geo DIR] [--weather weather.csv] [--final] [--lang en|zh]"
+usage <- "usage: Rscript charts.R <export.csv> <output-dir> --event DIR [--weather weather.csv] [--final] [--lang en|zh]"
 args <- commandArgs(trailingOnly = TRUE)
 positional <- character()
 options <- list()
 i <- 1
 while (i <= length(args)) {
-  if (args[[i]] %in% c("--geo", "--weather", "--lang")) {
+  if (args[[i]] %in% c("--event", "--weather", "--lang")) {
     if (i == length(args)) stop(usage, call. = FALSE)
     options[[sub("^--", "", args[[i]])]] <- args[[i + 1]]
     i <- i + 2
@@ -52,7 +53,16 @@ if (length(positional) != 2) {
 }
 csv_path <- positional[[1]]
 out_dir <- positional[[2]]
-geo_dir <- if (is.null(options$geo)) NA_character_ else options$geo
+if (is.null(options$event)) {
+  stop("--event is required\n", usage, call. = FALSE)
+}
+event_dir <- options$event
+event <- jsonlite::fromJSON(file.path(event_dir, "event.json"), simplifyVector = TRUE)
+if (is.null(event$name$en) || is.null(event$name$zh) || is.null(event$timezone)) {
+  stop(file.path(event_dir, "event.json"), " needs name.en, name.zh and timezone", call. = FALSE)
+}
+geo_dir <- file.path(event_dir, "geo")
+if (!all(file.exists(file.path(geo_dir, c("routes.json", "coastline.json"))))) geo_dir <- NA_character_
 weather_path <- if (is.null(options$weather)) NA_character_ else options$weather
 final_mode <- isTRUE(options$final)
 lang <- if (is.null(options$lang)) "en" else options$lang
@@ -61,7 +71,7 @@ if (!lang %in% c("en", "zh")) {
 }
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-tz <- "Asia/Shanghai"
+tz <- event$timezone
 # Intel refreshes each mission's counters about once an hour (each mission at its own minute),
 # so finer bins alternate between a refresh and nothing.
 bin_minutes <- 60
@@ -100,7 +110,7 @@ condition_icons <- c(
   ScatteredThunderstorms = "⛈️", StrongStorms = "⛈️", Breezy = "💨", Windy = "💨", TropicalStorm = "🌀",
   Hurricane = "🌀")
 weather_icon <- function(code, time, rain_mm = 0) {
-  hour <- as.integer(format(time, "%H", tz = "Asia/Shanghai"))
+  hour <- as.integer(format(time, "%H", tz = tz))
   night <- hour < 6 | hour >= 18
   icon <- unname(condition_icons[code])
   icon[is.na(icon)] <- ""
@@ -112,13 +122,21 @@ weather_icon <- function(code, time, rain_mm = 0) {
 # Every third hour, so icons along a day-long strip do not crowd.
 icon_hours <- function(hours) {
   hours |>
-    filter(as.integer(format(time, "%H", tz = "Asia/Shanghai")) %% 3 == 0) |>
+    filter(as.integer(format(time, "%H", tz = tz)) %% 3 == 0) |>
     mutate(icon = weather_icon(condition, time, precipitation_amount)) |>
     filter(icon != "")
 }
 
 # Chart text in the chosen language.
 tr <- function(en, zh) if (lang == "zh") zh else en
+event_name <- tr(event$name$en, event$name$zh)
+weather_area <- if (is.null(event$weather$area)) tr("the event area", "活动区域") else tr(event$weather$area$en, event$weather$area$zh)
+# "UTC+8", "UTC-4", "UTC+5:30": the event's offset from UTC at the given time.
+utc_label <- function(time) {
+  offset <- format(time, "%z", tz = tz)
+  minutes <- substr(offset, 4, 5)
+  paste0("UTC", substr(offset, 1, 1), as.integer(substr(offset, 2, 3)), if (minutes == "00") "" else paste0(":", minutes))
+}
 zh_weekdays <- c("周日", "周一", "周二", "周三", "周四", "周五", "周六")
 weekday <- function(time) {
   if (lang == "zh") zh_weekdays[as.POSIXlt(time, tz = tz)$wday + 1] else format(time, "%a", tz = tz)
@@ -158,7 +176,7 @@ if (nrow(raw) == 0) {
   stop("export contains no snapshots", call. = FALSE)
 }
 
-# Export timestamps carry the +08:00 offset; the first 19 characters are local Zhuhai time.
+# Export timestamps carry the event's UTC offset; the first 19 characters are local event time.
 # Every mission in a run is plotted at the run's start so a run never straddles a bin edge.
 snapshots <- raw |>
   mutate(
@@ -223,8 +241,8 @@ save_png <- function(plot, file, width, height) {
          device = ragg::agg_png, bg = surface)
 }
 
-caption <- sprintf(tr("Source: Ingress Intel, sampled every 5 min · updated %s (UTC+8)",
-                      "数据：Ingress Intel，每 5 分钟采样 · 更新于 %s（UTC+8）"), updated)
+caption <- sprintf(tr("Source: Ingress Intel, sampled every 5 min · updated %s (%s)",
+                      "数据：Ingress Intel，每 5 分钟采样 · 更新于 %s（%s）"), updated, utc_label(max(snapshots$time)))
 
 # Start of the bin_minutes-wide bin each time falls in.
 bin_start <- function(time) {
@@ -311,11 +329,11 @@ if (!is.null(weather_hours)) {
     theme_md
   panels <- list(p_total, p_hourly, p_weather)
   heights <- c(3, 2, 1.7)
-  subtitle <- paste0(subtitle, tr("\nBottom: temperature and conditions at the 情侣路 cluster; blue bands = rain (darker = heavier). Weather: Apple Weather",
-                                  "\n下：情侣路一带的气温与天气；蓝色区块 = 降雨（越深雨越大）。天气：Apple Weather"))
+  subtitle <- paste0(subtitle, sprintf(tr("\nBottom: temperature and conditions at %s; blue bands = rain (darker = heavier). Weather: Apple Weather",
+                                          "\n下：%s的气温与天气；蓝色区块 = 降雨（越深雨越大）。天气：Apple Weather"), weather_area))
 }
 p_total_combo <- patchwork::wrap_plots(panels, ncol = 1, heights = heights) +
-  patchwork::plot_annotation(title = tr("MD 2026 Zhuhai · total mission completions", "MD 2026 珠海 · 任务总完成数"),
+  patchwork::plot_annotation(title = paste(event_name, tr("· total mission completions", "· 任务总完成数")),
                              subtitle = subtitle,
                              caption = caption, theme = theme_md)
 save_png(p_total_combo, "total.png", 10, if (is.null(weather_hours)) 6.5 else 7.8)
@@ -377,8 +395,8 @@ if (nrow(ratings) > 0) {
 
 # 5. Map: where completions happen, as a heat surface. Each mission's completions are spread
 # evenly along its route and smoothed with a Gaussian kernel, so the heat follows the walked
-# streets. The overview uses a wide kernel to show the city-scale spread; the second panel
-# zooms into the dense 情侣路 cluster with a narrow kernel.
+# streets. The overview uses a wide kernel to show the city-scale spread; when the event names a
+# map focus, a second panel zooms into that dense group of missions with a narrow kernel.
 if (!is.na(geo_dir)) {
   routes_json <- jsonlite::fromJSON(file.path(geo_dir, "routes.json"), simplifyVector = FALSE)$routes
   coast_json <- jsonlite::fromJSON(file.path(geo_dir, "coastline.json"), simplifyVector = FALSE)
@@ -402,7 +420,7 @@ if (!is.na(geo_dir)) {
     stop("geo routes do not match the exported missions", call. = FALSE)
   }
 
-  # Local equirectangular scale: degrees to km at Zhuhai's latitude.
+  # Local equirectangular scale: degrees to km at the routes' latitude.
   km_per_lat <- 110.57
   km_per_lng <- 111.32 * cos(mean(route_paths$lat) * pi / 180)
 
@@ -445,7 +463,9 @@ if (!is.na(geo_dir)) {
     list(grid = expand.grid(lng = gx, lat = gy), basis = basis, missions = missions)
   }
   # counts: completions per mission, named by mission GUID; missing missions count as zero.
+  # A NULL kernel (no zoom panel) gives no values.
   heat_values <- function(kernel, counts) {
+    if (is.null(kernel)) return(NULL)
     weights <- unname(counts[kernel$missions])
     weights[is.na(weights)] <- 0
     as.vector(kernel$basis %*% weights)
@@ -453,6 +473,7 @@ if (!is.na(geo_dir)) {
   # Scale to peak (capped at 1). Faint heat fades into transparency instead of stopping at a hard
   # threshold, which would show the grid cells as stair-steps along the edge.
   heat_frame <- function(kernel, values, peak) {
+    if (is.null(kernel)) return(NULL)
     grid <- kernel$grid
     grid$heat <- if (peak > 0) pmin(values / peak, 1) else 0
     grid$opacity <- ifelse(grid$heat < 0.003, 0, pmin(1, grid$heat / 0.04))
@@ -465,9 +486,19 @@ if (!is.na(geo_dir)) {
     summarise(east_lat = lat[which.max(lng)], east_lng = max(lng), lat = mean(lat), lng = mean(lng),
               .groups = "drop")
 
-  cluster_orders <- 1:11
+  peak_of <- function(values) if (length(values) > 0) max(values) else 0
+  has_focus <- !is.null(event$mapFocus)
+  cluster_orders <- if (has_focus) as.integer(event$mapFocus$orders) else integer(0)
   cluster <- route_paths |> filter(order %in% cluster_orders)
-  zoom <- list(lng = range(cluster$lng) + c(-0.004, 0.012), lat = range(cluster$lat) + c(-0.003, 0.003))
+  zoom <- if (has_focus) list(lng = range(cluster$lng) + c(-0.004, 0.012), lat = range(cluster$lat) + c(-0.003, 0.003))
+  focus_label <- if (has_focus) tr(event$mapFocus$label$en, event$mapFocus$label$zh) else NA_character_
+  # "#01–#11" for a run of orders, otherwise each order.
+  focus_orders <- sort(cluster_orders)
+  focus_range <- if (length(focus_orders) > 1 && all(diff(focus_orders) == 1)) {
+    sprintf("#%02d–#%02d", min(focus_orders), max(focus_orders))
+  } else {
+    paste(sprintf("#%02d", focus_orders), collapse = " ")
+  }
   overview <- list(lng = range(route_paths$lng) + c(-0.03, 0.03), lat = range(route_paths$lat) + c(-0.02, 0.02))
   # Overview labels go right of the hot spot, except near the right edge where they would be clipped
   # or when another mission sits just to the right at the same height.
@@ -483,7 +514,7 @@ if (!is.na(geo_dir)) {
   cluster_missions <- centres |> filter(order %in% cluster_orders)
 
   overview_kernel <- heat_kernel(overview$lng, overview$lat, 0.35, 420)
-  zoom_kernel <- heat_kernel(zoom$lng, zoom$lat, 0.07, 420)
+  zoom_kernel <- if (has_focus) heat_kernel(zoom$lng, zoom$lat, 0.07, 420)
 
   heat_scale <- scale_fill_gradientn(colours = sequential_blues, limits = c(0, 1), na.value = NA,
                                      breaks = c(0.1, 1), labels = c(tr("low", "低"), tr("peak", "峰值")),
@@ -521,7 +552,7 @@ if (!is.na(geo_dir)) {
                  colour = "#8f8d84", linewidth = 0.35, lineend = "round")
   }
   overview_coast <- coast_layer(overview$lng, overview$lat)
-  zoom_coast <- coast_layer(zoom$lng, zoom$lat)
+  zoom_coast <- if (has_focus) coast_layer(zoom$lng, zoom$lat)
   map_theme <- theme_md +
     theme(panel.grid.major = element_blank(), axis.text = element_blank(), axis.title = element_blank(),
           panel.border = element_rect(colour = grid_color, fill = NA, linewidth = 0.6))
@@ -534,8 +565,8 @@ if (!is.na(geo_dir)) {
              fill = sequential_blues[1], alpha = min(0.6, 0.25 + 0.15 * rain_mm))
   }
 
-  # The overview and zoom panels for one heat surface; label_for(mission_guid) gives each label,
-  # NA hides it.
+  # The overview and, with a map focus, zoom panels for one heat surface; label_for(mission_guid)
+  # gives each label, NA hides it.
   map_panels <- function(overview_heat, zoom_heat, label_for, text_size = 3, rain_mm = 0) {
     outer_labels <- outer_missions |> mutate(label = label_for(mission_guid)) |> filter(!is.na(label))
     zoom_labels <- cluster_missions |> mutate(label = label_for(mission_guid)) |> filter(!is.na(label))
@@ -543,16 +574,20 @@ if (!is.na(geo_dir)) {
       rain_wash(overview$lng, overview$lat, rain_mm) +
       geom_raster(data = overview_heat, aes(lng, lat, fill = heat, alpha = opacity), interpolate = TRUE) +
       overview_coast +
-      annotate("rect", xmin = zoom$lng[1], xmax = zoom$lng[2], ymin = zoom$lat[1], ymax = zoom$lat[2],
-               fill = NA, colour = ink_secondary, linewidth = 0.4, linetype = "dashed") +
-      annotate("text", x = zoom$lng[2] + 0.004, y = zoom$lat[2], label = "情侣路 #01–#11 →",
-               hjust = 0, vjust = 1, family = font_family, size = text_size, colour = ink_secondary) +
+      (if (has_focus) list(
+        annotate("rect", xmin = zoom$lng[1], xmax = zoom$lng[2], ymin = zoom$lat[1], ymax = zoom$lat[2],
+                 fill = NA, colour = ink_secondary, linewidth = 0.4, linetype = "dashed"),
+        annotate("text", x = zoom$lng[2] + 0.004, y = zoom$lat[2], label = paste(focus_label, focus_range, "→"),
+                 hjust = 0, vjust = 1, family = font_family, size = text_size, colour = ink_secondary))) +
       geom_text(data = outer_labels, aes(label_lng, lat, label = label, hjust = hjust),
                 family = font_family, size = text_size, colour = ink_primary) +
       heat_scale + scale_alpha_identity() +
       coord_quickmap(xlim = overview$lng, ylim = overview$lat, expand = FALSE, clip = "off") +
       labs(subtitle = sprintf(tr("All %d missions", "全部 %d 个任务"), length(mission_levels))) +
       map_theme
+    if (is.null(zoom_heat)) {
+      return(patchwork::wrap_plots(p_overview, guides = "collect"))
+    }
     p_zoom <- ggplot() +
       rain_wash(zoom$lng, zoom$lat, rain_mm) +
       geom_raster(data = zoom_heat, aes(lng, lat, fill = heat, alpha = opacity), interpolate = TRUE) +
@@ -563,7 +598,7 @@ if (!is.na(geo_dir)) {
                 hjust = 0, nudge_x = 0.0012, family = font_family, size = text_size, colour = ink_primary) +
       heat_scale + scale_alpha_identity() +
       coord_quickmap(xlim = zoom$lng, ylim = zoom$lat, expand = FALSE, clip = "off") +
-      labs(subtitle = tr("情侣路 cluster · thin lines = routes", "情侣路片区 · 细线 = 路线")) +
+      labs(subtitle = paste(focus_label, tr("· thin lines = routes", "· 细线 = 路线"))) +
       map_theme
     patchwork::wrap_plots(p_overview, p_zoom, widths = c(1, 1), guides = "collect")
   }
@@ -579,7 +614,7 @@ if (!is.na(geo_dir)) {
     overview_values <- heat_values(overview_kernel, totals)
     zoom_values <- heat_values(zoom_kernel, totals)
     p_map <- map_panels(heat_frame(overview_kernel, overview_values, max(overview_values)),
-                        heat_frame(zoom_kernel, zoom_values, max(zoom_values)),
+                        heat_frame(zoom_kernel, zoom_values, peak_of(zoom_values)),
                         function(guid) mission_label(guid, comma(unname(totals[guid])))) +
       patchwork::plot_annotation(
         title = tr("Where agents played · the whole Mission Day", "特工们在哪里玩 · 整个任务日"),
@@ -601,7 +636,7 @@ if (!is.na(geo_dir)) {
     overview_values <- heat_values(overview_kernel, last_hour_added)
     zoom_values <- heat_values(zoom_kernel, last_hour_added)
     p_map <- map_panels(heat_frame(overview_kernel, overview_values, max(overview_values)),
-                        heat_frame(zoom_kernel, zoom_values, max(zoom_values)),
+                        heat_frame(zoom_kernel, zoom_values, peak_of(zoom_values)),
                         function(guid) {
                           added <- unname(last_hour_added[guid])
                           mission_label(guid, sprintf("+%d", ifelse(is.na(added), 0L, added)))
@@ -615,7 +650,8 @@ if (!is.na(geo_dir)) {
                            else tr("No completions in the last hour", "最近一小时没有完成")),
         caption = map_caption, theme = theme_md)
   }
-  save_png(p_map, "map.png", 14, 8)
+  # One panel without a map focus, so the image is narrower.
+  save_png(p_map, "map.png", if (has_focus) 14 else 9, 8)
 
   # 5b. Animated map: the last two hours, one frame per 5-minute read. Each read's new completions
   # flash as heat and fade out linearly over 30 minutes; one colour scale for the whole animation.
@@ -644,7 +680,7 @@ if (!is.na(geo_dir)) {
     overview_frames <- lapply(faded_counts, function(counts) heat_values(overview_kernel, counts))
     zoom_frames <- lapply(faded_counts, function(counts) heat_values(zoom_kernel, counts))
     overview_peak <- max(unlist(overview_frames))
-    zoom_peak <- max(unlist(zoom_frames))
+    zoom_peak <- peak_of(unlist(zoom_frames))
 
     per_read <- snapshots |>
       mutate(t = as.numeric(time)) |>
@@ -729,7 +765,7 @@ if (!is.na(geo_dir)) {
     overview_frames <- lapply(trail_counts, function(counts) heat_values(overview_kernel, counts))
     zoom_frames <- lapply(trail_counts, function(counts) heat_values(zoom_kernel, counts))
     overview_peak <- max(unlist(overview_frames))
-    zoom_peak <- max(unlist(zoom_frames))
+    zoom_peak <- peak_of(unlist(zoom_frames))
     bar_limit <- max(observed$completed_count) * 1.34
     # Weather is optional: a temperature strip with rain shading under the timeline, and the
     # conditions of the current hour in the subtitle.
@@ -824,7 +860,7 @@ if (!is.na(geo_dir)) {
       }
       frame <- patchwork::wrap_plots(panels, ncol = 1, heights = heights) +
         patchwork::plot_annotation(
-          title = sprintf(tr("MD 2026 Zhuhai · %s", "MD 2026 珠海 · %s"), replay_stamp(now_time)),
+          title = paste(event_name, "·", replay_stamp(now_time)),
           subtitle = sprintf(tr("%s unique completions so far · heat = completions in the past hour, fading · bars: completions and rating per mission%s",
                                 "目前共 %s 次独立完成 · 热度 = 过去一小时的完成数（渐隐）· 柱状：各任务完成数与评分%s"),
                              comma(sum(state$completed_count)),

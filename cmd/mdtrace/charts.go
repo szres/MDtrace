@@ -69,17 +69,21 @@ type weatherSource interface {
 type rCharts struct {
 	rscript string
 	script  string
-	geoDir  string // optional; holds routes.json and coastline.json for the map chart
-	rows    rowSource
-	weather weatherSource // optional; adds the weather panel to total.png
-	loc     *time.Location
-	timeout time.Duration
-	final   bool // render the end-of-event set (whole-event map and replay)
-	lang    lang // language of the text inside the charts
+	// eventDir holds event.json (names, time zone, map focus) and, optionally, geo/ for the maps.
+	eventDir string
+	rows     rowSource
+	weather  weatherSource // optional; adds the weather panel to total.png
+	loc      *time.Location
+	timeout  time.Duration
+	final    bool // render the end-of-event set (whole-event map and replay)
+	lang     lang // language of the text inside the charts
 }
 
 // Render returns the chart image paths; cleanup removes them and must be called when done.
 func (r *rCharts) Render(ctx context.Context) (paths []string, cleanup func(), err error) {
+	if r.eventDir == "" {
+		return nil, nil, errors.New("charts: no event directory")
+	}
 	dir, err := os.MkdirTemp("", "mdtrace-charts-")
 	if err != nil {
 		return nil, nil, fmt.Errorf("charts: %w", err)
@@ -101,10 +105,7 @@ func (r *rCharts) Render(ctx context.Context) (paths []string, cleanup func(), e
 	}
 
 	outDir := filepath.Join(dir, "png")
-	args := []string{r.script, csvPath, outDir}
-	if r.geoDir != "" {
-		args = append(args, "--geo", r.geoDir)
-	}
+	args := []string{r.script, csvPath, outDir, "--event", r.eventDir}
 	files := chartFiles
 	if r.final {
 		args = append(args, "--final")

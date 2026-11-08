@@ -33,7 +33,7 @@ func fakeScript(t *testing.T, body string) string {
 func newTestCharts(t *testing.T, script string) *rCharts {
 	rows := []store.Row{{RunID: 1, MissionOrder: 1, MissionGUID: "a.1c", Title: "海滨泳场", CompletedCount: 3,
 		RunStartedAt: time.Unix(0, 0), FetchedAt: time.Unix(0, 0)}}
-	return &rCharts{rscript: "/bin/sh", script: script, rows: staticRows{rows: rows},
+	return &rCharts{rscript: "/bin/sh", script: script, eventDir: "/events/test", rows: staticRows{rows: rows},
 		loc: time.UTC, timeout: 10 * time.Second}
 }
 
@@ -63,16 +63,16 @@ echo gif > "$2/map_anim.gif"
 	}
 }
 
-func TestRenderChartsPassesGeoDir(t *testing.T) {
+func TestRenderChartsPassesEventDir(t *testing.T) {
 	script := fakeScript(t, `set -e
-test "$3" = --geo
-test "$4" = /geo/dir
+test "$3" = --event
+test "$4" = /events/md2027-x
 test "$#" = 4
 mkdir -p "$2"
 echo png > "$2/map.png"; echo png > "$2/total.png"
 `)
 	c := newTestCharts(t, script)
-	c.geoDir = "/geo/dir"
+	c.eventDir = "/events/md2027-x"
 	paths, cleanup, err := c.Render(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -106,9 +106,9 @@ func (s staticWeather) WeatherHours(context.Context) ([]weather.Hour, error) { r
 
 func TestRenderChartsPassesWeatherCSV(t *testing.T) {
 	script := fakeScript(t, `set -e
-test "$3" = --weather
-grep -q '^hour_start,condition,temperature,precipitation_chance,precipitation_amount$' "$4"
-grep -q '^2026-11-07T07:00:00+08:00,Rain,21.50,0.60,1.20$' "$4"
+test "$5" = --weather
+grep -q '^hour_start,condition,temperature,precipitation_chance,precipitation_amount$' "$6"
+grep -q '^2026-11-07T07:00:00+08:00,Rain,21.50,0.60,1.20$' "$6"
 mkdir -p "$2"
 echo png > "$2/total.png"
 `)
@@ -123,7 +123,7 @@ echo png > "$2/total.png"
 	cleanup()
 
 	// No stored weather yet: the option is left out so the chart renders without the panel.
-	c = newTestCharts(t, fakeScript(t, "set -e\ntest \"$#\" = 2\nmkdir -p \"$2\"\necho png > \"$2/total.png\"\n"))
+	c = newTestCharts(t, fakeScript(t, "set -e\ntest \"$#\" = 4\nmkdir -p \"$2\"\necho png > \"$2/total.png\"\n"))
 	c.weather = staticWeather{}
 	_, cleanup, err = c.Render(context.Background())
 	if err != nil {
@@ -132,19 +132,11 @@ echo png > "$2/total.png"
 	cleanup()
 }
 
-func TestGeoDirRequiresBothFiles(t *testing.T) {
-	dir := t.TempDir()
-	if got := geoDir(dir); got != "" {
-		t.Fatalf("missing geo dir should disable the map, got %q", got)
-	}
-	os.MkdirAll(filepath.Join(dir, "geo"), 0o700)
-	os.WriteFile(filepath.Join(dir, "geo", "routes.json"), []byte("{}"), 0o600)
-	if got := geoDir(dir); got != "" {
-		t.Fatalf("coastline missing should disable the map, got %q", got)
-	}
-	os.WriteFile(filepath.Join(dir, "geo", "coastline.json"), []byte("{}"), 0o600)
-	if got := geoDir(dir); got != filepath.Join(dir, "geo") {
-		t.Fatalf("geoDir = %q", got)
+func TestRenderChartsNeedsEventDir(t *testing.T) {
+	c := newTestCharts(t, fakeScript(t, "exit 0"))
+	c.eventDir = ""
+	if _, _, err := c.Render(context.Background()); err == nil {
+		t.Fatal("rendering without an event directory must fail")
 	}
 }
 

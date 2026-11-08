@@ -1,15 +1,21 @@
 #!/bin/bash
-# Export the collected snapshots (and weather, if any) and render the ggplot charts.
-#   ./scripts/charts.sh [output-dir]   (default: ./charts)
+# Export an event's snapshots (and weather, if any) and render the ggplot charts.
+#   ./scripts/charts.sh md2026-zhuhai [output-dir]   (default: ./charts/<slug>)
 set -euo pipefail
 
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+  sed -n '2,3p' "$0" >&2
+  exit 2
+fi
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-out="${1:-$repo/charts}"
+source "$repo/scripts/lib.sh"
+event="$(resolve_event "$1")"
+out="${2:-$repo/charts/$(basename "$event")}"
 work="$(mktemp -d -t mdtrace-charts)"
 trap '/bin/rm -rf "$work"' EXIT
 
-"$HOME/.config/mdtrace/bin/mdtrace" export -tz Asia/Shanghai -o "$work/export.csv" -weather "$work/weather.csv"
-options=(--geo "$repo/geo")
+"$config_dir/bin/mdtrace" export -dir "$config_dir" -event "$event" -o "$work/export.csv" -weather "$work/weather.csv"
+options=(--event "$event")
 # The header line alone means no weather has been collected yet.
 if [ "$(wc -l < "$work/weather.csv")" -gt 1 ]; then
   options+=(--weather "$work/weather.csv")

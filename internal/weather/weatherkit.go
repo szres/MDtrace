@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -39,7 +38,8 @@ type Config struct {
 	KeyID     string
 	ServiceID string
 	KeyPath   string
-	Lat, Lng  float64
+	// Lat and Lng are the point to report on; they come from the event, not weatherkit.env.
+	Lat, Lng float64
 }
 
 // LoadConfig reads weatherkit.env. WEATHERKIT_KEY_FILE is resolved relative to the env file.
@@ -50,7 +50,6 @@ func LoadConfig(path string) (Config, error) {
 	}
 	defer f.Close()
 	cfg := Config{KeyPath: "weatherkit.p8"}
-	var lat, lng string
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -71,10 +70,8 @@ func LoadConfig(path string) (Config, error) {
 			cfg.ServiceID = value
 		case "WEATHERKIT_KEY_FILE":
 			cfg.KeyPath = value
-		case "WEATHERKIT_LAT":
-			lat = value
-		case "WEATHERKIT_LNG":
-			lng = value
+		case "WEATHERKIT_LAT", "WEATHERKIT_LNG":
+			return Config{}, fmt.Errorf("%s: %s is no longer read here; set weather.lat and weather.lng in the event's event.json", path, strings.TrimSpace(key))
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -83,27 +80,10 @@ func LoadConfig(path string) (Config, error) {
 	if cfg.TeamID == "" || cfg.KeyID == "" || cfg.ServiceID == "" {
 		return Config{}, fmt.Errorf("%s must set WEATHERKIT_TEAM_ID, WEATHERKIT_KEY_ID and WEATHERKIT_SERVICE_ID", path)
 	}
-	if cfg.Lat, err = parseCoordinate(lat, 90); err != nil {
-		return Config{}, fmt.Errorf("%s: WEATHERKIT_LAT: %w", path, err)
-	}
-	if cfg.Lng, err = parseCoordinate(lng, 180); err != nil {
-		return Config{}, fmt.Errorf("%s: WEATHERKIT_LNG: %w", path, err)
-	}
 	if !filepath.IsAbs(cfg.KeyPath) {
 		cfg.KeyPath = filepath.Join(filepath.Dir(path), cfg.KeyPath)
 	}
 	return cfg, nil
-}
-
-func parseCoordinate(s string, limit float64) (float64, error) {
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid coordinate %q", s)
-	}
-	if math.Abs(v) > limit {
-		return 0, fmt.Errorf("coordinate %v out of range", v)
-	}
-	return v, nil
 }
 
 type Client struct {

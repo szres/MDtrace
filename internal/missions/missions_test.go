@@ -1,6 +1,7 @@
 package missions
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -32,17 +33,33 @@ func TestParseRejectsInvalidInput(t *testing.T) {
 	}
 }
 
-func TestLoadRepositoryMissionFile(t *testing.T) {
-	got, err := Load("../../missions.json")
+func TestLoadShippedEventMissionFiles(t *testing.T) {
+	paths, err := filepath.Glob("../../events/*/missions.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 18 {
-		t.Fatalf("got %d missions, want 18", len(got))
+	if len(paths) == 0 {
+		t.Fatal("no events/*/missions.json found")
 	}
-	for _, m := range got {
-		if !strings.HasSuffix(m.GUID, ".1c") {
-			t.Errorf("unexpected guid format %q", m.GUID)
+	for _, path := range paths {
+		got, err := Load(path)
+		if err != nil {
+			t.Fatal(err)
 		}
+		if len(got) == 0 {
+			t.Errorf("%s has no missions", path)
+		}
+		for _, m := range got {
+			if !strings.HasSuffix(m.GUID, ".1c") {
+				t.Errorf("%s: unexpected guid format %q", path, m.GUID)
+			}
+		}
+	}
+	zhuhai, err := Load("../../events/md2026-zhuhai/missions.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(zhuhai) != 18 {
+		t.Fatalf("got %d Zhuhai missions, want 18", len(zhuhai))
 	}
 }

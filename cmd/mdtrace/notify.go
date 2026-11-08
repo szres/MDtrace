@@ -61,8 +61,10 @@ type notifier struct {
 	charts  chartRenderer // optional; charts are attached to updates
 	store   alertStore
 	loc     *time.Location
-	now     func() time.Time
-	names   map[string]string // mission GUID -> short display name
+	// eventName titles the updates, e.g. "MD 2026 Zhuhai".
+	eventName string
+	now       func() time.Time
+	names     map[string]string // mission GUID -> short display name
 }
 
 func (n *notifier) afterRun(ctx context.Context, res collectResult, runErr error) error {
@@ -233,6 +235,7 @@ type reportRow struct {
 }
 
 type updateReport struct {
+	eventName  string
 	at         time.Time
 	since      time.Time
 	loc        *time.Location
@@ -244,7 +247,7 @@ type updateReport struct {
 
 // buildReport summarises the change against the baseline; it reports false when nothing changed.
 func (n *notifier) buildReport(changes []store.MissionChange, at, since time.Time) (updateReport, bool) {
-	r := updateReport{at: at, since: since, loc: n.loc}
+	r := updateReport{eventName: n.eventName, at: at, since: since, loc: n.loc}
 	anyChanged := false
 	for _, c := range changes {
 		anyChanged = anyChanged || c.Changed()
@@ -265,7 +268,7 @@ func (n *notifier) buildReport(changes []store.MissionChange, at, since time.Tim
 }
 
 func (r updateReport) title() string {
-	return "📊 MD Zhuhai · " + r.at.In(r.loc).Format("01-02 15:04")
+	return "📊 " + r.eventName + " · " + r.at.In(r.loc).Format("01-02 15:04")
 }
 
 func (r updateReport) sinceLabel() string {

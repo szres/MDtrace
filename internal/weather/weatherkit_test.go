@@ -185,22 +185,20 @@ func TestLoadConfig(t *testing.T) {
 WEATHERKIT_TEAM_ID=TEAM123456
 WEATHERKIT_KEY_ID="KEY1234567"
 WEATHERKIT_SERVICE_ID=com.example.weather
-WEATHERKIT_LAT=22.2738
-WEATHERKIT_LNG=113.5790
 `), 0o600)
 	cfg, err := LoadConfig(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := testConfig(dir)
+	want.Lat, want.Lng = 0, 0
 	if cfg != want {
 		t.Errorf("config = %+v, want %+v", cfg, want)
 	}
 
 	for name, content := range map[string]string{
-		"missing ids":  "WEATHERKIT_LAT=1\nWEATHERKIT_LNG=1\n",
-		"bad latitude": "WEATHERKIT_TEAM_ID=a\nWEATHERKIT_KEY_ID=b\nWEATHERKIT_SERVICE_ID=c\nWEATHERKIT_LAT=95\nWEATHERKIT_LNG=1\n",
-		"no longitude": "WEATHERKIT_TEAM_ID=a\nWEATHERKIT_KEY_ID=b\nWEATHERKIT_SERVICE_ID=c\nWEATHERKIT_LAT=1\n",
+		"missing ids":       "WEATHERKIT_TEAM_ID=a\n",
+		"old weather point": "WEATHERKIT_TEAM_ID=a\nWEATHERKIT_KEY_ID=b\nWEATHERKIT_SERVICE_ID=c\nWEATHERKIT_LAT=22\n",
 	} {
 		os.WriteFile(path, []byte(content), 0o600)
 		if _, err := LoadConfig(path); err == nil {

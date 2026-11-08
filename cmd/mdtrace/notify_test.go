@@ -120,7 +120,7 @@ func newNotifyFixture(t *testing.T) *notifyFixture {
 	t.Cleanup(func() { db.Close() })
 	f := &notifyFixture{sender: &recordingSender{}, db: db, clock: time.Date(2026, 11, 7, 2, 0, 0, 0, time.UTC)}
 	f.n = &notifier{
-		sender: f.sender, store: db, loc: time.FixedZone("CST", 8*3600),
+		sender: f.sender, store: db, loc: time.FixedZone("CST", 8*3600), eventName: "MD 2026 Zhuhai",
 		now:   func() time.Time { return f.clock },
 		names: map[string]string{"a.1c": "海滨泳场"},
 	}
@@ -167,7 +167,7 @@ func TestUpdateSentOnlyWhenNumbersChange(t *testing.T) {
 		t.Fatalf("got %d messages", len(f.sender.messages))
 	}
 	msg := f.sender.messages[0]
-	for _, want := range []string{"📊 MD Zhuhai · 11-07 10:00", "Total completions 12 · +12 since 10:00",
+	for _, want := range []string{"📊 MD 2026 Zhuhai · 11-07 10:00", "Total completions 12 · +12 since 10:00",
 		"#|Mission|Done|Δ|Rating|Δ", "01|海滨泳场|12|+12|98.5%|+98.5", "02|MD b.1c|0||98.5%|+98.5"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("message missing %q:\n%s", want, msg)

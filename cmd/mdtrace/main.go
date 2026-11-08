@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"mdtrace/internal/event"
 	"mdtrace/internal/intel"
 	"mdtrace/internal/missions"
 	"mdtrace/internal/store"
@@ -31,17 +32,22 @@ import (
 )
 
 const usage = `usage:
-  mdtrace collect       [-dir DIR] [-cookies FILE] [-delay 2.5s] [-notify] [-tz Asia/Shanghai]
+  mdtrace collect       -event EVENT [-dir DIR] [-cookies FILE] [-delay 2.5s] [-notify]
                         [-charts charts.R] [-rscript Rscript]
-  mdtrace export        [-dir DIR] [-o FILE] [-weather FILE] [-tz Asia/Shanghai]
-  mdtrace telegram-test [-dir DIR] [-tz Asia/Shanghai] [-charts charts.R]
-  mdtrace weather-test  [-dir DIR] [-tz Asia/Shanghai]
-  mdtrace final         [-dir DIR] [-tz Asia/Shanghai] [-charts charts.R] [-preview]
+  mdtrace export        -event EVENT [-dir DIR] [-o FILE] [-weather FILE]
+  mdtrace telegram-test -event EVENT [-dir DIR] [-charts charts.R]
+  mdtrace weather-test  -event EVENT [-dir DIR]
+  mdtrace final         -event EVENT [-dir DIR] [-charts charts.R] [-preview]
+  mdtrace check         -event EVENT [-dir DIR]
 
-DIR (default ~/.config/mdtrace) holds missions.json, mdtrace.db and, optionally,
+EVENT is an event directory, or the name of one under DIR/events. It holds event.json
+(name, time zone, weather point, map focus), missions.json, optionally geo/routes.json
+and geo/coastline.json for the map charts, and the event's database mdtrace.db.
+
+DIR (default ~/.config/mdtrace) holds the settings shared by all events, all optional:
 telegram.env (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID) for Telegram updates and alerts,
-and weatherkit.env (WEATHERKIT_TEAM_ID, WEATHERKIT_KEY_ID, WEATHERKIT_SERVICE_ID,
-WEATHERKIT_LAT, WEATHERKIT_LNG; key in weatherkit.p8) for weather in updates and charts.
+and weatherkit.env (WEATHERKIT_TEAM_ID, WEATHERKIT_KEY_ID, WEATHERKIT_SERVICE_ID; key
+in weatherkit.p8) for weather in updates and charts.
 The Intel session comes from FILE (default DIR/intel.cookie): the Cookie request
 header of a logged-in https://intel.ingress.com tab, copied from the browser's
 developer tools. It is re-read on every run, so replacing the file renews the session.
@@ -67,6 +73,8 @@ func main() {
 		err = runWeatherTest(ctx, os.Args[2:])
 	case "final":
 		err = runFinal(ctx, os.Args[2:])
+	case "check":
+		err = runCheck(os.Args[2:])
 	default:
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
@@ -85,13 +93,47 @@ func defaultDir() string {
 	return filepath.Join(home, ".config", "mdtrace")
 }
 
+// eventFlags are the -dir and -event flags every subcommand takes.
+type eventFlags struct {
+	dir   *string
+	event *string
+}
+
+func addEventFlags(fs *flag.FlagSet) eventFlags {
+	return eventFlags{
+		dir:   fs.String("dir", defaultDir(), "settings directory shared by all events"),
+		event: fs.String("event", "", "event directory, or the name of one under DIR/events"),
+	}
+}
+
+func (f eventFlags) load() (*event.Event, error) {
+	path, err := event.Resolve(*f.dir, *f.event)
+	if err != nil {
+		return nil, err
+	}
+	return event.Load(path)
+}
+
+// loadEventMissions loads the event and its mission list, the inputs every subcommand needs.
+func loadEventMissions(f eventFlags) (*event.Event, []missions.Mission, error) {
+	ev, err := f.load()
+	if err != nil {
+		return nil, nil, err
+	}
+	list, err := missions.Load(ev.Path("missions.json"))
+	if err != nil {
+		return nil, nil, err
+	}
+	return ev, list, nil
+}
+
 func runCollect(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("collect", flag.ContinueOnError)
-	dir := fs.String("dir", defaultDir(), "data directory")
+	flags := addEventFlags(fs)
+	dir := flags.dir
 	delay := fs.Duration("delay", 2500*time.Millisecond, "pause between Intel requests")
 	cookies := fs.String("cookies", "", "file holding the Cookie header of a logged-in Intel session (default DIR/intel.cookie)")
 	notify := fs.Bool("notify", false, "show a macOS notification when the Intel session has expired")
-	tz := fs.String("tz", "Local", "IANA time zone for Telegram message times")
 	chartsScript := fs.String("charts", "", "path to charts.R; when set, Telegram updates include charts")
 	rscript := fs.String("rscript", "Rscript", "Rscript executable used to render charts")
 	if err := fs.Parse(args); err != nil {
@@ -103,25 +145,20 @@ func runCollect(ctx context.Context, args []string) error {
 	if *delay < 500*time.Millisecond {
 		return fmt.Errorf("-delay must be at least 500ms")
 	}
-	loc, err := time.LoadLocation(*tz)
-	if err != nil {
-		return fmt.Errorf("invalid -tz: %w", err)
-	}
-
-	logger := log.New(os.Stdout, "", log.LstdFlags)
-	list, err := missions.Load(filepath.Join(*dir, "missions.json"))
+	ev, list, err := loadEventMissions(flags)
 	if err != nil {
 		return err
 	}
 
-	db, err := store.Open(filepath.Join(*dir, "mdtrace.db"))
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	db, err := store.Open(ev.Path("mdtrace.db"))
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	n := newNotifier(*dir, db, loc, list, logger)
-	wx, err := loadWeather(*dir)
+	n := newNotifier(*dir, db, ev, list, logger)
+	wx, err := loadWeather(*dir, ev)
 	if err != nil {
 		logger.Printf("weather disabled: %v", err)
 	}
@@ -129,7 +166,7 @@ func runCollect(ctx context.Context, args []string) error {
 		if path, err := exec.LookPath(*rscript); err != nil {
 			logger.Printf("charts disabled: %v", err)
 		} else {
-			n.charts = &rCharts{rscript: path, script: *chartsScript, geoDir: geoDir(*dir), rows: db, weather: db, loc: loc, timeout: 2 * time.Minute}
+			n.charts = &rCharts{rscript: path, script: *chartsScript, eventDir: ev.Dir, rows: db, weather: db, loc: ev.Location, timeout: 2 * time.Minute}
 		}
 	}
 	report := func(res collectResult, runErr error) {
@@ -156,7 +193,7 @@ func runCollect(ctx context.Context, args []string) error {
 		return handleCollectError(errors.Join(err, startErr), *notify)
 	}
 	c := &collector{fetcher: fetcher, store: db, logger: logger, delay: *delay, sleep: sleepContext, now: time.Now}
-	logger.Printf("run start: %d missions", len(list))
+	logger.Printf("run start: %s, %d missions", ev.Slug, len(list))
 	res, err := c.run(ctx, list)
 	logger.Printf("run %d done: %d ok, %d failed, %d skipped", res.RunID, res.OK, res.Failed, res.Skipped)
 	if wx != nil && res.RunID != 0 {
@@ -176,7 +213,7 @@ func runCollect(ctx context.Context, args []string) error {
 
 // newNotifier returns nil when Telegram is not configured; a broken config is logged, not fatal,
 // so collection keeps running.
-func newNotifier(dir string, db *store.Store, loc *time.Location, list []missions.Mission, logger *log.Logger) *notifier {
+func newNotifier(dir string, db *store.Store, ev *event.Event, list []missions.Mission, logger *log.Logger) *notifier {
 	chat, channel, err := loadTelegram(dir)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
@@ -185,7 +222,7 @@ func newNotifier(dir string, db *store.Store, loc *time.Location, list []mission
 		logger.Printf("telegram disabled: %v", err)
 		return nil
 	}
-	n := newPreviewNotifier(chat, db, loc, list)
+	n := newPreviewNotifier(chat, db, ev, list)
 	if channel != nil { // a nil *Client stored in the interface would not compare equal to nil
 		n.channel = channel
 	}
@@ -213,26 +250,21 @@ func loadTelegram(dir string) (chat, channel *telegram.Client, err error) {
 
 func runTelegramTest(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("telegram-test", flag.ContinueOnError)
-	dir := fs.String("dir", defaultDir(), "data directory")
-	tz := fs.String("tz", "Local", "IANA time zone for message times")
+	flags := addEventFlags(fs)
 	chartsScript := fs.String("charts", "", "path to charts.R to include charts")
 	rscript := fs.String("rscript", "Rscript", "Rscript executable used to render charts")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	loc, err := time.LoadLocation(*tz)
-	if err != nil {
-		return fmt.Errorf("invalid -tz: %w", err)
-	}
-	client, _, err := loadTelegram(*dir)
+	ev, list, err := loadEventMissions(flags)
 	if err != nil {
 		return err
 	}
-	list, err := missions.Load(filepath.Join(*dir, "missions.json"))
+	client, _, err := loadTelegram(*flags.dir)
 	if err != nil {
 		return err
 	}
-	db, err := store.Open(filepath.Join(*dir, "mdtrace.db"))
+	db, err := store.Open(ev.Path("mdtrace.db"))
 	if err != nil {
 		return err
 	}
@@ -245,14 +277,14 @@ func runTelegramTest(ctx context.Context, args []string) error {
 	if !ok {
 		return client.Send(ctx, "✅ MDTrace is connected. No data collected yet.")
 	}
-	n := newPreviewNotifier(client, db, loc, list)
+	n := newPreviewNotifier(client, db, ev, list)
 	var charts []string
 	if *chartsScript != "" {
 		path, err := exec.LookPath(*rscript)
 		if err != nil {
 			return err
 		}
-		r := &rCharts{rscript: path, script: *chartsScript, geoDir: geoDir(*dir), rows: db, weather: db, loc: loc, timeout: 2 * time.Minute}
+		r := &rCharts{rscript: path, script: *chartsScript, eventDir: ev.Dir, rows: db, weather: db, loc: ev.Location, timeout: 2 * time.Minute}
 		paths, cleanup, err := r.Render(ctx)
 		if err != nil {
 			return err
@@ -268,8 +300,12 @@ func runTelegramTest(ctx context.Context, args []string) error {
 	return client.SendRich(ctx, report.richBlocks(charts))
 }
 
-// loadWeather returns nil without an error when WeatherKit is not configured.
-func loadWeather(dir string) (*weather.Client, error) {
+// loadWeather returns nil without an error when WeatherKit is not configured or the event has
+// no weather point.
+func loadWeather(dir string, ev *event.Event) (*weather.Client, error) {
+	if ev.Weather == nil {
+		return nil, nil
+	}
 	cfg, err := weather.LoadConfig(filepath.Join(dir, "weatherkit.env"))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -277,6 +313,7 @@ func loadWeather(dir string) (*weather.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	cfg.Lat, cfg.Lng = ev.Weather.Lat, ev.Weather.Lng
 	return weather.NewClient(&http.Client{Timeout: 20 * time.Second}, weather.DefaultBaseURL, cfg)
 }
 
@@ -298,22 +335,25 @@ func recordWeather(ctx context.Context, wx *weather.Client, db *store.Store, run
 
 func runWeatherTest(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("weather-test", flag.ContinueOnError)
-	dir := fs.String("dir", defaultDir(), "data directory")
-	tz := fs.String("tz", "Local", "IANA time zone for printed times")
+	flags := addEventFlags(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	loc, err := time.LoadLocation(*tz)
+	ev, err := flags.load()
 	if err != nil {
-		return fmt.Errorf("invalid -tz: %w", err)
+		return err
 	}
-	wx, err := loadWeather(*dir)
+	if ev.Weather == nil {
+		return fmt.Errorf("%s has no weather point", ev.Path(event.FileName))
+	}
+	wx, err := loadWeather(*flags.dir, ev)
 	if err != nil {
 		return err
 	}
 	if wx == nil {
-		return fmt.Errorf("%s not found", filepath.Join(*dir, "weatherkit.env"))
+		return fmt.Errorf("%s not found", filepath.Join(*flags.dir, "weatherkit.env"))
 	}
+	loc := ev.Location
 	now := time.Now()
 	hour := now.Truncate(time.Hour)
 	report, err := wx.Fetch(ctx, now, hour.Add(-weatherHistory), hour.Add(weatherForecast))
@@ -332,23 +372,17 @@ func runWeatherTest(ctx context.Context, args []string) error {
 	return nil
 }
 
-// geoDir returns the map chart inputs directory inside dir, or "" when they are not installed.
-func geoDir(dir string) string {
-	path := filepath.Join(dir, "geo")
-	for _, name := range []string{"routes.json", "coastline.json"} {
-		if _, err := os.Stat(filepath.Join(path, name)); err != nil {
-			return ""
-		}
-	}
-	return path
+func newPreviewNotifier(sender messageSender, db *store.Store, ev *event.Event, list []missions.Mission) *notifier {
+	return &notifier{sender: sender, store: db, loc: ev.Location, eventName: ev.Name.EN, now: time.Now, names: namesByGUID(list)}
 }
 
-func newPreviewNotifier(sender messageSender, db *store.Store, loc *time.Location, list []missions.Mission) *notifier {
+// namesByGUID maps each mission GUID to its short display name.
+func namesByGUID(list []missions.Mission) map[string]string {
 	names := make(map[string]string, len(list))
 	for _, m := range list {
 		names[m.GUID] = m.DisplayName
 	}
-	return &notifier{sender: sender, store: db, loc: loc, now: time.Now, names: names}
+	return names
 }
 
 // readCookieHeader is re-run on every collection so a replaced cookie file is picked up.
@@ -374,19 +408,19 @@ func handleCollectError(err error, notify bool) error {
 
 func runExport(ctx context.Context, args []string) (err error) {
 	fs := flag.NewFlagSet("export", flag.ContinueOnError)
-	dir := fs.String("dir", defaultDir(), "data directory")
-	out := fs.String("o", "-", "output CSV file ('-' for stdout)")
+	flags := addEventFlags(fs)
+	out := fs.String("o", "-", "output CSV file ('-' for stdout); times are in the event's time zone")
 	weatherOut := fs.String("weather", "", "also write the hourly weather series to this CSV file")
-	tz := fs.String("tz", "Local", "IANA time zone for exported timestamps, e.g. Asia/Shanghai")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	loc, err := time.LoadLocation(*tz)
+	ev, err := flags.load()
 	if err != nil {
-		return fmt.Errorf("invalid -tz: %w", err)
+		return err
 	}
+	loc := ev.Location
 
-	dbPath := filepath.Join(*dir, "mdtrace.db")
+	dbPath := ev.Path("mdtrace.db")
 	if _, err := os.Stat(dbPath); err != nil {
 		return fmt.Errorf("no database at %s: %w", dbPath, err)
 	}
