@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>io.github.szres.mdtrace</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>@DIR@/bin/mdtrace</string>
+    <string>collect</string>
+    <string>-dir</string>
+    <string>@DIR@</string>
+    <string>-notify</string>
+    <string>-tz</string>
+    <string>Asia/Shanghai</string>
+    <string>-charts</string>
+    <string>@DIR@/charts.R</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>LANG</key>
+    <string>en_US.UTF-8</string>
+  </dict>
+
+  <key>WorkingDirectory</key>
+  <string>@DIR@</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>5</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>10</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>15</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>20</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>25</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>30</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>35</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>40</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>45</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>50</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>55</integer>
+    </dict>
+  </array>
+
+  <key>StandardOutPath</key>
+  <string>@DIR@/collect.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>@DIR@/collect.log</string>
+</dict>
+</plist>

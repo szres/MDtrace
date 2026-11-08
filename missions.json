@@ -1,0 +1,169 @@
+{
+  "kind": "mission-links",
+  "reviewed": true,
+  "exportedAt": "2026-11-06T08:21:20.764Z",
+  "missions": [
+    {
+      "order": 1,
+      "sourceRouteId": "16cdbb21-7be2-4ca9-a4b4-42d57e743838",
+      "displayName": "海滨泳场",
+      "missionGuid": "dbd8b6bf31fe47bcb2e90c76c89463ad.1c",
+      "missionUrl": "https://link.ingress.com/mission/dbd8b6bf31fe47bcb2e90c76c89463ad.1c",
+      "title": "MD 2026: Zhuhai, 海滨泳场",
+      "imageUrl": "https://lh3.googleusercontent.com/SDndYPuXskx4pqjXC3jX281MipOS4TkcM6LJNW7Z2w4k_Vdf8Lx90y8sUy8c8L26qX_DmO-J2RmR_sF7H9-ljYnC6Aiaf4G6HA"
+    },
+    {
+      "order": 2,
+      "sourceRouteId": "97b56aea-d28f-4bf1-a903-b5a399135e93",
+      "displayName": "爱情邮局",
+      "missionGuid": "86fd17816962415c85944fb066860fb8.1c",
+      "missionUrl": "https://link.ingress.com/mission/86fd17816962415c85944fb066860fb8.1c",
+      "title": "MD 2026: Zhuhai, 爱情邮局",
+      "imageUrl": "https://lh3.googleusercontent.com/mY5XGXhik3xop6ZUvrSgX31BKpBUjn-9pZavoz9BVbN8TSyquYgo5Fx5QcUToP3091PB1k0PYQMu6HPqeAY00wABr7udRj7Ynk4"
+    },
+    {
+      "order": 3,
+      "sourceRouteId": "5611eab5-68e3-418f-88e1-c7b690efd9a2",
+      "displayName": "珠海渔女",
+      "missionGuid": "21d75a9229b040ada1c0ada18545074b.1c",
+      "missionUrl": "https://link.ingress.com/mission/21d75a9229b040ada1c0ada18545074b.1c",
+      "title": "MD 2026: Zhuhai,珠海渔女",
+      "imageUrl": "https://lh3.googleusercontent.com/V4ipjkRRevVq_JleXTI-0rTmnSPaNAC_ikxzMRoDkq7mNBx33Gn32KYGemP1KLhmlPR_6oj4t3G4WVLFZ5PHqV1WzSboIdSB"
+    },
+    {
+      "order": 4,
+      "sourceRouteId": "94e60ac4-65e5-42ed-93c0-9507a9cf05cc",
+      "displayName": "海滨公园",
+      "missionGuid": "d6f757a79ad04d829f42c9e8c3b6b3ef.1c",
+      "missionUrl": "https://link.ingress.com/mission/d6f757a79ad04d829f42c9e8c3b6b3ef.1c",
+      "title": "MD 2026: Zhuhai, 海滨公园",
+      "imageUrl": "https://lh3.googleusercontent.com/6IMf2N03RyulBVdNtxYae8ao61i8UdEDYWk4KXgMStY7x6cohl-_dNVSICurPlbbeIrlEx7-p4BylnrH3b3V696ge3DpXUEs3Q"
+    },
+    {
+      "order": 5,
+      "sourceRouteId": "b965e996-2a32-4b39-b467-e56e74c8bff5",
+      "displayName": "城市阳台",
+      "missionGuid": "7b3d061945554516a595d943db7f476f.1c",
+      "missionUrl": "https://link.ingress.com/mission/7b3d061945554516a595d943db7f476f.1c",
+      "title": "MD 2026: Zhuhai, 城市阳台",
+      "imageUrl": "https://lh3.googleusercontent.com/pob1EF26P3OWc-VOefNJyqArUfzlrqAh8fooOXO8a4kwv8BuOUaknMjmx5SB9p7UrUYQqRF4yf_IwbOHC4SAJRhvJ46jxDLB"
+    },
+    {
+      "order": 6,
+      "sourceRouteId": "55b4eccb-5d3e-4dfb-bbdd-21ef54f4ea35",
+      "displayName": "九洲城",
+      "missionGuid": "bcc535cdf0524b13a06b877c9caf8bcb.1c",
+      "missionUrl": "https://link.ingress.com/mission/bcc535cdf0524b13a06b877c9caf8bcb.1c",
+      "title": "MD 2026: Zhuhai, 九洲城",
+      "imageUrl": "https://lh3.googleusercontent.com/eSuaU5sajlC-7WulCBb5ggNla4m5n78Ncx6gA5r6lIfqar6OmdHhrG6g0sPEzex0998tGdyDCf0kAwWw17V67NmCeJCweo1WRQ"
+    },
+    {
+      "order": 7,
+      "sourceRouteId": "1fe9a709-56a1-49d1-a155-eda3be519208",
+      "displayName": "情侣路",
+      "missionGuid": "ca394751164c4e7fb16d83ee062d4f3b.1c",
+      "missionUrl": "https://link.ingress.com/mission/ca394751164c4e7fb16d83ee062d4f3b.1c",
+      "title": "MD 2026: Zhuhai, 情侣路",
+      "imageUrl": "https://lh3.googleusercontent.com/nBqYSjcrBNmQYGjEQMAZjVfjgELzx2W_Jq3ljAfCPnjsxh4zhHes4c-kVg6DowY2iQ5hnCeM9dR5lZuehh5l58PyG1bI5fKI"
+    },
+    {
+      "order": 8,
+      "sourceRouteId": "1f43fa1f-eb78-4e15-992a-17b9098313f0",
+      "displayName": "野狸岛",
+      "missionGuid": "ad7a0aaa5c26420c809c55d3185e52ed.1c",
+      "missionUrl": "https://link.ingress.com/mission/ad7a0aaa5c26420c809c55d3185e52ed.1c",
+      "title": "MD 2026: Zhuhai, 野狸岛",
+      "imageUrl": "https://lh3.googleusercontent.com/g3NFVPpO42kCrRy4_ynnO2u0GnzNGYUFpgj0eCgCSK6HIZlcwB6BfSrVCALWLz8G8pAvQvUWuUG-24fSy2_EEn7c3VtHtfgbIR8"
+    },
+    {
+      "order": 9,
+      "sourceRouteId": "3f26bb6a-dadc-49ea-afe5-d07346ccdc27",
+      "displayName": "珠海大剧院",
+      "missionGuid": "44d191ce96534871a5bfef9942d1b074.1c",
+      "missionUrl": "https://link.ingress.com/mission/44d191ce96534871a5bfef9942d1b074.1c",
+      "title": "MD 2026: Zhuhai, 珠海大剧院",
+      "imageUrl": "https://lh3.googleusercontent.com/O5GLwfTl0n7j0oZz78dG0GjqPQyCADM1kcGWzdHKOhtYFp4fh5ZnQtoeFlNbVxp_1tpdEZka-qpUZUfADih__0bkQ7HIiOgbr7Y"
+    },
+    {
+      "order": 10,
+      "sourceRouteId": "e4ab30b6-727c-4c00-b6b1-ab06b279627f",
+      "displayName": "珠海博物馆与城市规划展览馆",
+      "missionGuid": "50b300c217f0457d98278a779b6909ab.1c",
+      "missionUrl": "https://link.ingress.com/mission/50b300c217f0457d98278a779b6909ab.1c",
+      "title": "MD 2026: Zhuhai,珠海博物馆与城市规划展览馆",
+      "imageUrl": "https://lh3.googleusercontent.com/Td35JpQ7Yd0WSH-xD0xa7nyU-Zq0SNTOv5KHrIDSY753bckXvQ4w7sO_2y_NtlWaiIXepssd0IadTzCHJWDMxbikVW4uKfEj"
+    },
+    {
+      "order": 11,
+      "sourceRouteId": "8b88989b-a1cc-4070-b5fc-a151e32bfb38",
+      "displayName": "海天公园",
+      "missionGuid": "c200617cca004adc959ce14fe660ead4.1c",
+      "missionUrl": "https://link.ingress.com/mission/c200617cca004adc959ce14fe660ead4.1c",
+      "title": "MD 2026: Zhuhai, 海天公园",
+      "imageUrl": "https://lh3.googleusercontent.com/wbA3ebDZPRsYPvzNKn5CKyMdyZEkRMG4r7PD0u3ydHcGIV0W8-NgiBBSoCay82Ia7quOS42MWQQa_47B40eUpEYOwuOAzuF_Ew"
+    },
+    {
+      "order": 12,
+      "sourceRouteId": "4d3bbd7d-5d0d-42e5-aa9d-4c98952bbc22",
+      "displayName": "白莲洞公园",
+      "missionGuid": "14ed6632938f4cf69c82a924df2c6e0d.1c",
+      "missionUrl": "https://link.ingress.com/mission/14ed6632938f4cf69c82a924df2c6e0d.1c",
+      "title": "MD 2026: Zhuhai, 白莲洞公园",
+      "imageUrl": "https://lh3.googleusercontent.com/TRDpoGnHzYtdxv8O8LnG7KV8VoLqujDrtJ1Qo0vk8m7pQf4iQQNR7kX1zmB8B1qCqR7mev2DuH2QXvykAnO1nrmmWUfW38g3"
+    },
+    {
+      "order": 13,
+      "sourceRouteId": "646e7b22-a2d6-488a-9fb5-52cedcdda933",
+      "displayName": "圆明新园",
+      "missionGuid": "786ae0bde8574084a4f11aaa7363646b.1c",
+      "missionUrl": "https://link.ingress.com/mission/786ae0bde8574084a4f11aaa7363646b.1c",
+      "title": "MD 2026: Zhuhai, 圆明新园",
+      "imageUrl": "https://lh3.googleusercontent.com/6-XnlYIyhtEYUuB0hj38OOkaai1Av5XtWk5JtVQkss-AlHhC1_GsbLbKxT1hX09npSUUw33tVAxZ8lbu6fY_3wkCFYtgkj1C"
+    },
+    {
+      "order": 14,
+      "sourceRouteId": "a828a235-a313-4a63-bdfc-35d00039121c",
+      "displayName": "拱北口岸",
+      "missionGuid": "355d552bfc914f44b618efdf07600f75.1c",
+      "missionUrl": "https://link.ingress.com/mission/355d552bfc914f44b618efdf07600f75.1c",
+      "title": "MD 2026: Zhuhai, 拱北口岸",
+      "imageUrl": "https://lh3.googleusercontent.com/Nrniy81JroLgULclBMYvXV0aMgAhe_1fFQQsem_txn7hH0TzkHGmReG9IBO3JIQUBk9B5zPCxi1SgpQyxHD3CelvYK9JkR0d"
+    },
+    {
+      "order": 15,
+      "sourceRouteId": "e4bfb6e3-7875-423b-941b-b26437828e46",
+      "displayName": "湾仔旅游码头",
+      "missionGuid": "233a30e104d64df4b5293bab1e801408.1c",
+      "missionUrl": "https://link.ingress.com/mission/233a30e104d64df4b5293bab1e801408.1c",
+      "title": "MD 2026: Zhuhai, 湾仔旅游码头",
+      "imageUrl": "https://lh3.googleusercontent.com/Pp5lRtLDLDoXqQjpKwyMnoU0_fT1kL2BtrkREp2Ji7CrYcQjCMTUTTiOeXScMwOOjyu_3X9ppb_nYZ83UPZ9IMYc7e5JDROavA"
+    },
+    {
+      "order": 16,
+      "sourceRouteId": "eac3896e-7ba7-4503-bc93-f0148413be80",
+      "displayName": "励骏庞都广场",
+      "missionGuid": "07437ddcd7444566beb25c0e45bae997.1c",
+      "missionUrl": "https://link.ingress.com/mission/07437ddcd7444566beb25c0e45bae997.1c",
+      "title": "MD 2026: Zhuhai, 励骏庞都广场",
+      "imageUrl": "https://lh3.googleusercontent.com/om5ufRRGCTwhvqSCNo54s0fdyGmABUlyp1UH5KKOmhfcIkVzfBPjbvQXmSEX-UnGZcRsdRTUfBRZNcnSFPi4AAUH-yQ_vEdR"
+    },
+    {
+      "order": 17,
+      "sourceRouteId": "a1b08744-a446-4c4d-94e2-992f8d038727",
+      "displayName": "横琴芒洲湿地公园",
+      "missionGuid": "8cb7f794fb47463d9c3ec85bf762f909.1c",
+      "missionUrl": "https://link.ingress.com/mission/8cb7f794fb47463d9c3ec85bf762f909.1c",
+      "title": "MD 2026: Zhuhai, 横琴芒洲湿地公园",
+      "imageUrl": "https://lh3.googleusercontent.com/voL8oip82cmEYjaglc9WcwW9OCYFPX0meFsEURtmeolRAvrS4ZqAHmEBtoY3T_xyW3VwHdB9qJZEU2EOxUY-onaMKpPDVoig-g"
+    },
+    {
+      "order": 18,
+      "sourceRouteId": "7bd6e8ce-60ec-4381-88ea-6f8b25542ef1",
+      "displayName": "淇澳岛",
+      "missionGuid": "816866025bd848428d3c5c45125dd28f.1c",
+      "missionUrl": "https://link.ingress.com/mission/816866025bd848428d3c5c45125dd28f.1c",
+      "title": "MD 2026: Zhuhai, 淇澳岛",
+      "imageUrl": "https://lh3.googleusercontent.com/nMF_OLi6C-3rNDay7FO9Ri4BE4fsaT-yjDD-i6rPKUOJLnVKvl841kSVAFYyscQMgvEh1dPuzra5WmKgXIyVUIz75rttc_NxAw"
+    }
+  ]
+}

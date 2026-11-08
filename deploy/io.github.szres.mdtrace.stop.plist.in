@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>io.github.szres.mdtrace.stop</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>@DIR@/stop.sh</string>
+  </array>
+
+  <!-- Local time. launchd runs a missed slot once on wake. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Month</key>
+    <integer>@MONTH@</integer>
+    <key>Day</key>
+    <integer>@DAY@</integer>
+    <key>Hour</key>
+    <integer>@HOUR@</integer>
+    <key>Minute</key>
+    <integer>@MINUTE@</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>@DIR@/collect.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>@DIR@/collect.log</string>
+</dict>
+</plist>
